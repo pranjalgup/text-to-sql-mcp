@@ -1,0 +1,37 @@
+[project]
+name = "text2sql-mcp"
+version = "0.1.0"
+description = "MCP server that lets LLMs answer analytics questions via a semantic layer - safe, read-only text-to-SQL"
+readme = "README.md"
+authors = [
+    { name = "Pranjal Gupta", email = "gpranjal29pg@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.5.6",
+    "mcp[cli]>=2.3.0",
+    "pyyaml>=6.0.3",
+]
+
+license = "MIT"
+keywords = ["mcp", "model-context-protocol", "text-to-sql", "llm", "semantic-layer", "duckdb", "agents"]
+
+[project.scripts]
+text2sql-mcp = "text2sql_mcp.server:main"
+text2sql-seed = "text2sql_mcp.seed:main"
+
+[build-system]
+requires = ["uv_build>=0.11.3,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,94 @@
+# Semantic layer: the only vocabulary the LLM is allowed to use.
+# The model asks for metrics + dimensions + filters by name; the server
+# compiles SQL from these definitions. Raw table/column names never come
+# from the LLM, which is what keeps generated SQL valid and safe.
+
+base_table: orders
+base_alias: o
+
+joins:
+  customers:
+    table: customers
+    alias: c
+    condition: o.customer_id = c.customer_id
+  products:
+    table: products
+    alias: p
+    condition: o.product_id = p.product_id
+
+time_dimension: order_date
+
+metrics:
+  revenue:
+    sql: SUM(o.quantity * o.unit_price)
+    description: Gross revenue in USD (quantity x unit price), including returned orders.
+    format: currency
+  net_revenue:
+    sql: SUM(CASE WHEN o.status <> 'returned' THEN o.quantity * o.unit_price ELSE 0 END)
+    description: Revenue excluding returned orders.
+    format: currency
+  orders:
+    sql: COUNT(DISTINCT o.order_id)
+    description: Number of distinct orders.
+  units_sold:
+    sql: SUM(o.quantity)
+    description: Total units across all order lines.
+  customers:
+    sql: COUNT(DISTINCT o.customer_id)
+    description: Number of distinct purchasing customers.
+  avg_order_value:
+    sql: SUM(o.quantity * o.unit_price) / NULLIF(COUNT(DISTINCT o.order_id), 0)
+    description: Revenue divided by number of orders.
+    format: currency
+  return_rate:
+    sql: AVG(CASE WHEN o.status = 'returned' THEN 1.0 ELSE 0.0 END)
+    description: Share of order lines that were returned (0-1).
+    format: percent
+
+dimensions:
+  order_date:
+    sql: o.order_date
+    type: time
+    description: Date the order was placed. Use time_grain to bucket by day/week/month/quarter/year.
+  channel:
+    sql: o.channel
+    description: Acquisition channel (web, app, marketplace).
+  status:
+    sql: o.status
+    description: Order status (delivered, shipped, returned, cancelled).
+  country:
+    sql: c.country
+    join: customers
+    description: Customer country.
+  region:
+    sql: c.region
+    join: customers
+    description: Customer region (APAC, EMEA, NA, LATAM).
+  customer_segment:
+    sql: c.segment
+    join: customers
+    description: Customer segment (consumer, smb, enterprise).
+  category:
+    sql: p.category
+    join: products
+    description: Product category.
+  product_name:
+    sql: p.product_name
+    join: products
+    description: Product name.
+
+# Row-level access: a user only ever sees rows matching their scope.
+# Enforced in the compiler, never delegated to the prompt.
+access:
+  default_scope: {}          # unknown / unset user -> no restriction (local demo)
+  users:
+    apac_analyst:
+      region: [APAC]
+    emea_manager:
+      region: [EMEA]
+      channel: [web, app]
+
+limits:
+  default_rows: 100
+  max_rows: 1000
+  timeout_seconds: 10
